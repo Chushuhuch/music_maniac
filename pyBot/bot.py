@@ -35,25 +35,6 @@ def helpCommand(update: Update, context: CallbackContext) -> None:
                               'Then paste it here to get links to other services.')
 
 
-# def echo(update: Update, context: CallbackContext) -> None:
-#     """Echo the user message."""
-#     update.message.reply_text(update.message.text)
-
-# def recognize(update: Update, context: CallbackContext) -> None:
-#     """Handle voice message."""
-#     # update.message.reply_text("This was a voice message\n" + update.message.voice.mime_type + ' ' + str(update.message.voice.duration))
-#     audio_file = update.message.voice.get_file()
-#     audio_file.download("audio.ogg")
-#
-#     # update.message.reply_voice(open("audio.ogg", "rb"))
-#
-#     logger.debug(asr)
-#     job = asr.speech_to_text.create_job(open("audio.ogg", "rb"), content_type=update.message.voice.mime_type, user_token=IAM)
-#     result = job.get_result()
-#     logger.debug(result)
-#     update.message.reply_text(result.json()["results"]["results"]["alternatives"][0]["transcript"])
-
-
 class MediaObject:
 
     def __init__(self, track: str = None, album: str = None, invalid: bool = False):
@@ -105,17 +86,23 @@ class AppleMusicManager(MusicServiceManager):
         return MediaObject(track = track_name, album = collection_name)
 
 
+def send_reply(update: Update, text: str):
+    logger.debug(update.message.text + ' ' + text)
+    update.message.reply_text(text)
+
+
 def processLink(update: Update, context: CallbackContext) -> None:
     text = update.message.text
+    logger.debug(text)
 
     apple_media_object = AppleMusicManager().parseMediaFromLink(text)
     if apple_media_object == MediaObject.INVALID_MEDIA_OBJECT:
-        update.message.reply_text("Sorry, couldn't parse the link. We are working on this problem.")
+        send_reply(update, "Sorry, couldn't parse the link. We are working on this problem.")
         return
 
     track = apple_media_object.track
     album = apple_media_object.album
-    update.message.reply_text('This is a link to {track}{from_album}.'.
+    send_reply(update, 'This is a link to {track}{from_album}.'.
                               format(track = track, from_album =' from album {album}'.format(album = album) if album is not None else ''))
 
 
