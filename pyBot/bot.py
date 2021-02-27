@@ -4,22 +4,18 @@ the Dispatcher and registered at their respective places.
 Then, the bot is started and runs until we press Ctrl-C on the command line.
 Usage:
 """
-import abc
 import logging
-import re
 from collections import defaultdict
 from enum import Enum
-from http import HTTPStatus
 from logging import DEBUG
-from typing import Optional
-
-import requests
-import yandex_music
 
 from credentials import bot_token
 
-from telegram import Update, ParseMode
+from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+
+from musicServices.apple import AppleMusicManager
+from musicServices.yandex import YandexMusicManager
 
 # Enable logging
 logging.basicConfig(
@@ -59,79 +55,6 @@ class MediaObject:
         self.mediaType = mediaType
         if not origin or not link:
             logger.warning('Creating valid MediaObject without link or origin: {this}'.format(this = self))
-
-
-class MusicServiceManager(metaclass=abc.ABCMeta):
-
-    @abc.abstractmethod
-    def parseMediaFromLink(self, link: str) -> Optional['MediaObject']:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def searchMediaByLink(self, mediaObject: MediaObject):
-        # Populates mediaObject with link in a corresponding music service
-        raise NotImplementedError
-
-
-class AppleMusicManager(MusicServiceManager):
-
-    LINK_PREFIX = 'https://music.apple.com/ru/album/'
-    GET_INFO_BY_ID_REQUEST = 'https://itunes.apple.com/lookup?id={id}'
-    IDS_REGEX = re.compile(r'(\d+)\?i=(\d+)&ls')
-
-    def parseMediaFromLink(self, link: str) -> Optional['MediaObject']:
-        if not link.startswith(self.LINK_PREFIX):
-            return None
-        parts = link[len(self.LINK_PREFIX):].split('/')
-        if not len(parts) == 2:
-            return None
-        _, ids = parts
-        # ids == 'albumID?i=trackID&ls'
-        match = re.match(self.IDS_REGEX, ids)
-        if not match:
-            return None
-
-        # collection_id = match.group(1)
-        track_id = match.group(2)
-
-        response = requests.get(self.GET_INFO_BY_ID_REQUEST.format(id = track_id))
-        if response.status_code != HTTPStatus.OK:
-            return None
-        response_json = response.json()
-        if response_json['resultCount'] != 1 or 'trackName' not in response_json['results'][0]:
-            return None
-        track_name = response_json['results'][0]['trackName']
-        collection_name = response_json['results'][0]['collectionName']
-
-        return MediaObject(track = track_name, album = collection_name, origin = MusicService.APPLE, link = link)
-
-    def searchMediaByLink(self, mediaObject: MediaObject):
-        raise NotImplementedError
-
-
-class YandexMusicManager(MusicServiceManager):
-
-    def __init__(self):
-        self.client = yandex_music.Client()
-
-    def parseMediaFromLink(self, link: str) -> Optional['MediaObject']:
-        raise NotImplementedError
-
-    def searchMediaByLink(self, mediaObject: MediaObject):
-        if mediaObject.mediaType != MediaType.TRACK:
-            raise NotImplementedError
-
-        search_result = self.client.search(text = '{album}{track}'.format(album = mediaObject.album + ' ' if mediaObject.album else '', track = mediaObject.track), nocorrect = True, type_ = 'track')
-        track_results = search_result.tracks
-        if not track_results:
-            logger.debug('Not found any tracks by the request')
-            return
-        tracks = track_results.results
-        matching_tracks = [track for track in tracks if (not mediaObject.album or len([album for album in track.albums if album.title == mediaObject.album]) > 0) and track.title == mediaObject.track]
-        if len(matching_tracks) != 1:
-            logger.debug('Found bad amount of tracks in Yandex.Music: {matching_tracks}'.format(matching_tracks = matching_tracks))
-        if matching_tracks:
-            mediaObject.link[MusicService.YANDEX] = 'https://music.yandex.ru/track/{track_id}'.format(track_id = matching_tracks[0].id)
 
 
 def send_reply(update: Update, text: str):
