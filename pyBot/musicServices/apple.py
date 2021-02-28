@@ -4,8 +4,7 @@ from typing import Optional
 
 import requests
 
-from bot import MediaObject, MusicService
-from musicServices.common import MusicServiceManager
+from musicServices.common import MusicServiceManager, MusicService, MediaObject
 
 
 class AppleMusicManager(MusicServiceManager):

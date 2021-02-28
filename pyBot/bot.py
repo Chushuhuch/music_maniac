@@ -5,25 +5,21 @@ Then, the bot is started and runs until we press Ctrl-C on the command line.
 Usage:
 """
 import logging
-from collections import defaultdict
-from enum import Enum
-from logging import DEBUG
 
+from common import LOGGER_NAME
 from credentials import bot_token
 
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
 from musicServices.apple import AppleMusicManager
+from musicServices.common import MusicService
 from musicServices.yandex import YandexMusicManager
+from utils import setup_logging
 
-# Enable logging
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
-)
 
-logger = logging.getLogger(__name__)
-logger.level = DEBUG
+setup_logging()
+logger = logging.getLogger(LOGGER_NAME)
 
 
 def startCommand(update: Update, context: CallbackContext) -> None:
@@ -35,36 +31,14 @@ def helpCommand(update: Update, context: CallbackContext) -> None:
                               'Then paste it here to get links to other services.')
 
 
-class MusicService(Enum):
-    APPLE = 1
-    YANDEX = 2
-
-
-class MediaType(Enum):
-    TRACK = 1
-
-
-class MediaObject:
-
-    def __init__(self, track: str = None, album: str = None, origin: MusicService = None, link: str = None, mediaType: MediaType = MediaType.TRACK):
-        self.track = track
-        self.album = album
-        self.origin = origin
-        self.link = defaultdict(str)
-        self.link[origin] = link
-        self.mediaType = mediaType
-        if not origin or not link:
-            logger.warning('Creating valid MediaObject without link or origin: {this}'.format(this = self))
-
-
 def send_reply(update: Update, text: str):
-    logger.debug(update.message.text + ' ' + text)
+    logger.debug('Replying to request id {id}: {reply}'.format(id = update.update_id, reply = text))
     update.message.reply_text(text)
 
 
 def processLink(update: Update, context: CallbackContext) -> None:
     text = update.message.text
-    logger.debug(text)
+    logger.debug('Got new request with id {id}: {text}'.format(id = update.update_id, text = text))
 
     apple_media_object = AppleMusicManager().parseMediaFromLink(text)
     if not apple_media_object:

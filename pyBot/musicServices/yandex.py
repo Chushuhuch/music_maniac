@@ -2,8 +2,7 @@ from typing import Optional
 
 import yandex_music
 
-from bot import MediaObject, MediaType, logger, MusicService
-from musicServices.common import MusicServiceManager
+from musicServices.common import MusicServiceManager, MusicService, MediaType, MediaObject, logger
 
 
 class YandexMusicManager(MusicServiceManager):
